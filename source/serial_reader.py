@@ -1,6 +1,7 @@
 import csv
 import platform
 import serial
+import datetime
 
 class SerialReader:
     def __init__(self):
@@ -20,7 +21,7 @@ class SerialReader:
             if i % 2 == 0:
                 labels.append(values[i])
             else:
-                readings.append(values[i])
+                readings.append(float(values[i]))
 
         return dict(zip(labels, readings))
 
@@ -28,6 +29,6 @@ class SerialReader:
         reader = csv.reader([self.ser.readline()])
         values = reader.next()
         data_list = []
-        for i in values:
-            data_list.append(float(i))
-        return data_list
+        for raw_val in values:
+            data_list.append(raw_val)
+        return datetime.datetime.now(), self.parse_values(data_list)

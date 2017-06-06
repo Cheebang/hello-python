@@ -7,6 +7,7 @@ import matplotlib.colors as colors
 from matplotlib.figure import Figure
 from bound_control_box import BoundControlBox
 from serial_reader import SerialReader
+from serial_data_holder import SerialDataHolder
 
 # The recommended way to use wx with mpl is with the WXAgg backend.
 matplotlib.use('WXAgg')
@@ -15,21 +16,19 @@ matplotlib.use('WXAgg')
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigCanvas  # noqa
 import matplotlib.pyplot as plt  # noqa
 
-
 REFRESH_INTERVAL_MS = 90
 DPI = 100
 
 class GraphFrame(wx.Frame):
-    """The main frame of the application."""
-
     title = 'Demo: dynamic matplotlib graph'
 
     def __init__(self, data_source):
         wx.Frame.__init__(self, None, -1, self.title)
 
         self.data_source = data_source
-        self.data = [self.data_source.next()]
+        self.data = SerialDataHolder()
         self.paused = False
+        self.x_size = 0
 
         self.plot_data = []
         self.color_offset = 1
@@ -72,62 +71,44 @@ class GraphFrame(wx.Frame):
         self.plot_initialize()
         self.canvas = FigCanvas(self.panel, -1, self.figure)
 
-        self.xmin_control_box = BoundControlBox(self.panel, "X min", 0)
-        self.xmax_control_box = BoundControlBox(self.panel, "X max", 50)
-        self.ymin_control_box = BoundControlBox(self.panel, "Y min", 0)
-        self.ymax_control_box = BoundControlBox(self.panel, "Y max", 100)
+        self.setup_control_boxes()
+        self.setup_pause_button()
 
-        self.pause_button = wx.Button(self.panel, -1, "Pause")
-        self.Bind(wx.EVT_BUTTON, self.on_pause_button_click, self.pause_button)
-        self.Bind(
-            wx.EVT_UPDATE_UI,
-            self.on_pause_button_update,
-            self.pause_button
-        )
+        self.setup_visibility_checkbox()
+        self.setup_x_axis_visibility_checkbox()
 
+        self.setup_hbox1()
+        self.setup_hbox2()
+        self.setup_vbox()
+
+        self.panel.SetSizer(self.vbox)
+        self.vbox.Fit(self)
+
+    def setup_visibility_checkbox(self):
         self.grid_visibility_check_box = wx.CheckBox(
-            self.panel, -1,
-            "Show Grid",
-            style=wx.ALIGN_RIGHT
-        )
-        self.Bind(
-            wx.EVT_CHECKBOX,
-            self.on_grid_visibility_control_box_toggle,
-            self.grid_visibility_check_box
-        )
+            self.panel, -1, 
+            "Show Grid", 
+            style=wx.ALIGN_RIGHT)
+        self.Bind(wx.EVT_CHECKBOX, self.on_grid_visibility_control_box_toggle, self.grid_visibility_check_box)
         self.grid_visibility_check_box.SetValue(True)
 
+    def setup_x_axis_visibility_checkbox(self):
         self.xlabels_visibility_check_box = wx.CheckBox(
-            self.panel, -1,
-            "Show X labels",
-            style=wx.ALIGN_RIGHT
-        )
-        self.Bind(
-            wx.EVT_CHECKBOX,
-            self.on_xlabels_visibility_check_box_toggle,
-            self.xlabels_visibility_check_box
-        )
+            self.panel, -1, 
+            "Show X labels", 
+            style=wx.ALIGN_RIGHT)
+        self.Bind(wx.EVT_CHECKBOX, self.on_xlabels_visibility_check_box_toggle, self.xlabels_visibility_check_box)
         self.xlabels_visibility_check_box.SetValue(True)
 
+    def setup_hbox1(self):
         self.hbox1 = wx.BoxSizer(wx.HORIZONTAL)
-        self.hbox1.Add(
-            self.pause_button,
-            border=5,
-            flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL
-        )
+        self.hbox1.Add(self.pause_button, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(20)
-        self.hbox1.Add(
-            self.grid_visibility_check_box,
-            border=5,
-            flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL
-        )
+        self.hbox1.Add(self.grid_visibility_check_box, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(10)
-        self.hbox1.Add(
-            self.xlabels_visibility_check_box,
-            border=5,
-            flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL
-        )
+        self.hbox1.Add(self.xlabels_visibility_check_box, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
 
+    def setup_hbox2(self):
         self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
         self.hbox2.Add(self.xmin_control_box, border=5, flag=wx.ALL)
         self.hbox2.Add(self.xmax_control_box, border=5, flag=wx.ALL)
@@ -135,13 +116,22 @@ class GraphFrame(wx.Frame):
         self.hbox2.Add(self.ymin_control_box, border=5, flag=wx.ALL)
         self.hbox2.Add(self.ymax_control_box, border=5, flag=wx.ALL)
 
+    def setup_vbox(self):
         self.vbox = wx.BoxSizer(wx.VERTICAL)
         self.vbox.Add(self.canvas, 1, flag=wx.LEFT | wx.TOP | wx.GROW)
         self.vbox.Add(self.hbox1, 0, flag=wx.ALIGN_LEFT | wx.TOP)
         self.vbox.Add(self.hbox2, 0, flag=wx.ALIGN_LEFT | wx.TOP)
 
-        self.panel.SetSizer(self.vbox)
-        self.vbox.Fit(self)
+    def setup_pause_button(self):
+        self.pause_button = wx.Button(self.panel, -1, "Pause")
+        self.Bind(wx.EVT_BUTTON, self.on_pause_button_click, self.pause_button)
+        self.Bind(wx.EVT_UPDATE_UI, self.on_pause_button_update, self.pause_button)
+
+    def setup_control_boxes(self):
+        self.xmin_control_box = BoundControlBox(self.panel, "X min", 0)
+        self.xmax_control_box = BoundControlBox(self.panel, "X max", 50)
+        self.ymin_control_box = BoundControlBox(self.panel, "Y min", 0)
+        self.ymax_control_box = BoundControlBox(self.panel, "Y max", 100)
 
     def create_status_bar(self):
         self.status_bar = self.CreateStatusBar()
@@ -157,24 +147,20 @@ class GraphFrame(wx.Frame):
         plt.setp(self.axes.get_xticklabels(), fontsize=8)
         plt.setp(self.axes.get_yticklabels(), fontsize=8)
 
-        # Plot the data and save the reference to the plotted line
-        for i in range(len(self.data)):
+        i = 0
+        for key in self.data.data.keys():
             if len(self.plot_data) > i:
                 self.plot_data[i] = self.axes.plot(
-                    self.data[i], linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i],
+                    self.data[key].values(), linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i],
                 )[0]
             else:
                 self.plot_data.append(self.axes.plot(
-                    self.data[i], linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i],
+                    self.data[key].values(), linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i],
                 )[0])
+            i += 1
 
     def get_plot_xrange(self):
-        """
-        Return minimal and maximal values of plot -xaxis range to be displayed.
-        Values of *x_min* and *x_max* by default are determined to show sliding
-        window of last 50 elements of data set and they can be manually set.
-        """
-        x_max = max(len(self.data[0]), 50) if self.xmax_control_box.is_auto() \
+        x_max = max(self.x_size, 50) if self.xmax_control_box.is_auto() \
             else int(self.xmax_control_box.value)
 
         x_min = x_max - 50 if self.xmin_control_box.is_auto() \
@@ -182,55 +168,21 @@ class GraphFrame(wx.Frame):
 
         return x_min, x_max
 
-    def get_plot_yrange(self):
-        """
-        Return minimal and maximal values of plot y-axis range to be displayed.
-        Values of *y_min* and *y_max* are determined by finding minimal and
-        maximal values of the data set and adding minimal necessary margin.
-        """
+    def get_plot_yrange(self):       
+        smallest = [0]
+        biggest = [20]
         
-        smallest = []
-        biggest = []
-        
-        for data in self.data:
-            smallest.append(min(data))
-            biggest.append(max(data))
+        for key in self.data.data.keys():
+            smallest.append(min(self.data.data[key]))
+            biggest.append(max(self.data.data[key]))
 
         y_min = round(min(smallest)) - 1 if self.ymin_control_box.is_auto() \
             else int(self.ymin_control_box.value)
- 
+  
         y_max = round(max(biggest)) + 1 if self.ymax_control_box.is_auto() \
             else int(self.ymax_control_box.value)
 
         return y_min, y_max
-
-    def draw_plot(self):
-        """Redraw the plot."""
-
-        x_min, x_max = self.get_plot_xrange()
-        y_min, y_max = self.get_plot_yrange()
-
-        self.axes.set_xbound(lower=x_min, upper=x_max)
-        self.axes.set_ybound(lower=y_min, upper=y_max)
-
-        self.axes.grid(self.grid_visibility_check_box.IsChecked())
-
-        # Set x-axis labels visibility
-        plt.setp(
-            self.axes.get_xticklabels(),
-            visible=self.xlabels_visibility_check_box.IsChecked()
-        )
-
-        for i in range(len(self.data)):
-            if len(self.plot_data) > i:
-                self.plot_data[i].set_xdata(np.arange(len(self.data[i])))
-                self.plot_data[i].set_ydata(np.array(self.data[i]))
-            else:
-                self.plot_data.append(self.axes.plot(
-                    self.data[i], linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i],
-                )[0])
-
-        self.canvas.draw()
 
     def on_pause_button_click(self, event):
         self.paused = not self.paused
@@ -263,17 +215,38 @@ class GraphFrame(wx.Frame):
             self.flash_status_message("Saved to {}".format(path))
 
     def on_plot_redraw(self, event):
-        """Get new value from data source if necessary and redraw the plot."""
         if not self.paused:
-            values = self.data_source.next()
-            for i in range(len(values)):
-                if (len (self.data) > i):
-                    self.data[i].append(values[i])
-                else:
-                    self.data.append([values[i]])
-#             self.data.append(self.data_source.next())
+            self.data.add(self.data_source.next())
+            self.x_size += 1
 
         self.draw_plot()
+
+    def draw_plot(self):
+        x_min, x_max = self.get_plot_xrange()
+        y_min, y_max = self.get_plot_yrange()
+
+        self.axes.set_xbound(lower=x_min, upper=x_max)
+        self.axes.set_ybound(lower=y_min, upper=y_max)
+
+        self.axes.grid(self.grid_visibility_check_box.IsChecked())
+
+        plt.setp(
+            self.axes.get_xticklabels(),
+            visible=self.xlabels_visibility_check_box.IsChecked()
+        )
+
+        i = 0
+        for key in self.data.data.keys():
+            if len(self.plot_data) > i:
+                self.plot_data[i].set_xdata(np.arange(len(self.data.data[key])))
+                self.plot_data[i].set_ydata(np.array(self.data.data[key]))
+            else:
+                self.plot_data.append(self.axes.plot(
+                    self.data.data[key], linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i],
+                )[0])
+            i += 1
+
+        self.canvas.draw()
 
     def on_exit(self, event):
         self.Destroy()
