@@ -1,6 +1,7 @@
 import argparse
 import os
 import wx
+import csv
 import numpy as np
 import matplotlib
 import matplotlib.colors as colors
@@ -52,6 +53,15 @@ class GraphFrame(wx.Frame):
             helpString="Save plot to file"
         )
         self.Bind(wx.EVT_MENU, self.on_plot_save, save_plot_entry)
+
+        menu.AppendSeparator()
+        
+        export_plot_entry = menu.Append(
+            id=-1,
+            item="&Export plot\tCtrl-E",
+            helpString="Export plot data to CSV file"
+        )
+        self.Bind(wx.EVT_MENU, self.on_plot_export, export_plot_entry)
 
         menu.AppendSeparator()
 
@@ -136,6 +146,18 @@ class GraphFrame(wx.Frame):
     def create_status_bar(self):
         self.status_bar = self.CreateStatusBar()
 
+    def plot_latest_values(self):
+        i = 0
+        for key in self.data.data.keys():
+            if len(self.plot_data) > i:
+                self.plot_data[i] = self.plot_values_for_key(i, key)
+            else:
+                self.plot_data.append(self.plot_values_for_key(i, key))
+            i += 1
+
+    def plot_values_for_key(self, i, key):
+        return self.axes.plot(self.data.data[key], linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i])[0]
+
     def plot_initialize(self):
         self.figure = Figure((3.0, 3.0), dpi=DPI)
 
@@ -147,17 +169,7 @@ class GraphFrame(wx.Frame):
         plt.setp(self.axes.get_xticklabels(), fontsize=8)
         plt.setp(self.axes.get_yticklabels(), fontsize=8)
 
-        i = 0
-        for key in self.data.data.keys():
-            if len(self.plot_data) > i:
-                self.plot_data[i] = self.axes.plot(
-                    self.data[key].values(), linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i],
-                )[0]
-            else:
-                self.plot_data.append(self.axes.plot(
-                    self.data[key].values(), linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i],
-                )[0])
-            i += 1
+        self.plot_latest_values()
 
     def get_plot_xrange(self):
         x_max = max(self.x_size, 50) if self.xmax_control_box.is_auto() \
@@ -214,6 +226,30 @@ class GraphFrame(wx.Frame):
             self.canvas.print_figure(path, dpi=DPI)
             self.flash_status_message("Saved to {}".format(path))
 
+    def on_plot_export(self, event):
+        file_choices = "CSV (*.csv)|*.csv"
+
+        dlg = wx.FileDialog(
+            self,
+            message="Export plot data as...",
+            defaultDir=os.getcwd(),
+            defaultFile="serial_data.csv",
+            wildcard=file_choices,
+            style=wx.FD_SAVE
+        )
+
+        if dlg.ShowModal() == wx.ID_OK:
+            path = dlg.GetPath()
+            self.export_csv_file(path)
+            self.flash_status_message("Saved to {}".format(path))
+
+    def export_csv_file(self, path):
+        csvfile = open(path, 'wb')
+        csvwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        csvwriter.writerow(["Timestamps"] + self.data.timestamps)
+        for key in self.data.data.keys():
+            csvwriter.writerow([key] + self.data.data[key])
+
     def on_plot_redraw(self, event):
         if not self.paused:
             self.data.add(self.data_source.next())
@@ -241,9 +277,7 @@ class GraphFrame(wx.Frame):
                 self.plot_data[i].set_xdata(np.arange(len(self.data.data[key])))
                 self.plot_data[i].set_ydata(np.array(self.data.data[key]))
             else:
-                self.plot_data.append(self.axes.plot(
-                    self.data.data[key], linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i],
-                )[0])
+                self.plot_data.append(self.plot_values_for_key(i, key))
             i += 1
 
         self.canvas.draw()
