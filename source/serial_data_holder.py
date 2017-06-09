@@ -2,6 +2,7 @@ class SerialDataHolder:
     def __init__(self):
         self.data = {}
         self.timestamps = []
+
     def add(self, (timestamp, values)):
         self.timestamps.append(timestamp)
         for key in values.keys():

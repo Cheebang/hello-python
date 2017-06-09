@@ -14,10 +14,10 @@ from serial_data_holder import SerialDataHolder
 matplotlib.use('WXAgg')
 
 # Those import have to be after setting matplotlib backend.
-from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigCanvas  # noqa
-import matplotlib.pyplot as plt  # noqa
+from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigCanvas
+import matplotlib.pyplot as plt
 
-REFRESH_INTERVAL_MS = 90
+REFRESH_INTERVAL_MS = 500
 DPI = 100
 
 class GraphFrame(wx.Frame):
@@ -28,12 +28,14 @@ class GraphFrame(wx.Frame):
 
         self.data_source = data_source
         self.data = SerialDataHolder()
-        self.paused = False
+        self.paused = True
         self.x_size = 0
 
         self.plot_data = []
         self.color_offset = 1
         self.line_width = 1
+
+        self.comm_ports = ['COM2', 'COM3'] 
 
         self.create_menu()
         self.create_status_bar()
@@ -54,26 +56,68 @@ class GraphFrame(wx.Frame):
         )
         self.Bind(wx.EVT_MENU, self.on_plot_save, save_plot_entry)
 
-        menu.AppendSeparator()
-        
-        export_plot_entry = menu.Append(
-            id=-1,
-            item="&Export plot\tCtrl-E",
-            helpString="Export plot data to CSV file"
-        )
-        self.Bind(wx.EVT_MENU, self.on_plot_export, export_plot_entry)
-
-        menu.AppendSeparator()
-
-        exit_entry = menu.Append(
-            id=-1,
-            item="E&xit\tCtrl-X",
-            helpString="Exit"
-        )
-        self.Bind(wx.EVT_MENU, self.on_exit, exit_entry)
+        self.setup_save_plot(menu)
+        self.setup_export_plot(menu)
 
         self.menu_bar.Append(menu, "&File")
         self.SetMenuBar(self.menu_bar)
+
+    def setup_save_plot(self, menu):
+        menu.AppendSeparator()
+        export_plot_entry = menu.Append(
+            id=-1, 
+            item="&Export plot\tCtrl-E", 
+            helpString="Export plot data to CSV file")
+        self.Bind(wx.EVT_MENU, self.on_plot_export, export_plot_entry)
+
+    def setup_export_plot(self, menu):
+        menu.AppendSeparator()
+        exit_entry = menu.Append(
+            id=-1, 
+            item="E&xit\tCtrl-X", 
+            helpString="Exit")
+        self.Bind(wx.EVT_MENU, self.on_exit, exit_entry)
+
+    def on_plot_save(self, event):
+        file_choices = "PNG (*.png)|*.png"
+
+        dlg = wx.FileDialog(
+            self,
+            message="Save plot as...",
+            defaultDir=os.getcwd(),
+            defaultFile="plot.png",
+            wildcard=file_choices,
+            style=wx.FD_SAVE
+        )
+
+        if dlg.ShowModal() == wx.ID_OK:
+            path = dlg.GetPath()
+            self.canvas.print_figure(path, dpi=DPI)
+            self.flash_status_message("Saved to {}".format(path))
+
+    def on_plot_export(self, event):
+        file_choices = "CSV (*.csv)|*.csv"
+
+        dlg = wx.FileDialog(
+            self,
+            message="Export plot data as...",
+            defaultDir=os.getcwd(),
+            defaultFile="serial_data.csv",
+            wildcard=file_choices,
+            style=wx.FD_SAVE
+        )
+
+        if dlg.ShowModal() == wx.ID_OK:
+            path = dlg.GetPath()
+            self.export_csv_file(path)
+            self.flash_status_message("Saved to {}".format(path))
+
+    def export_csv_file(self, path):
+        csvfile = open(path, 'wb')
+        csvwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        csvwriter.writerow(["Timestamps"] + self.data.timestamps)
+        for key in self.data.data.keys():
+            csvwriter.writerow([key] + self.data.data[key])
 
     def create_main_panel(self):
         self.panel = wx.Panel(self)
@@ -84,7 +128,7 @@ class GraphFrame(wx.Frame):
         self.setup_control_boxes()
         self.setup_pause_button()
 
-        self.setup_visibility_checkbox()
+        self.setup_grid_visibility_checkbox()
         self.setup_x_axis_visibility_checkbox()
 
         self.setup_hbox1()
@@ -94,7 +138,7 @@ class GraphFrame(wx.Frame):
         self.panel.SetSizer(self.vbox)
         self.vbox.Fit(self)
 
-    def setup_visibility_checkbox(self):
+    def setup_grid_visibility_checkbox(self):
         self.grid_visibility_check_box = wx.CheckBox(
             self.panel, -1, 
             "Show Grid", 
@@ -112,11 +156,20 @@ class GraphFrame(wx.Frame):
 
     def setup_hbox1(self):
         self.hbox1 = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.comm_choice = wx.Choice(self.panel, choices = self.comm_ports)
+        self.comm_choice.SetStringSelection(self.data_source.port)
+        self.comm_choice.Bind(wx.EVT_CHOICE, self.on_comm_choice)
+
+        self.hbox1.Add(self.comm_choice, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.Add(self.pause_button, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(20)
         self.hbox1.Add(self.grid_visibility_check_box, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(10)
         self.hbox1.Add(self.xlabels_visibility_check_box, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
+        self.hbox1.AddSpacer(10)
+        self.legend_label = wx.StaticText(self.panel, -1, "Legend: ", style=wx.ALIGN_RIGHT)
+        self.hbox1.Add(self.legend_label, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
 
     def setup_hbox2(self):
         self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
@@ -162,7 +215,7 @@ class GraphFrame(wx.Frame):
         self.figure = Figure((3.0, 3.0), dpi=DPI)
 
         self.axes = self.figure.add_subplot(111)
-        self.axes.set_axis_bgcolor('black')
+        self.axes.set_facecolor('black')
         self.axes.set_title('Arduino Serial Data', size=12)
         self.axes.grid(color='grey')
 
@@ -203,52 +256,15 @@ class GraphFrame(wx.Frame):
         label = "Resume" if self.paused else "Pause"
         self.pause_button.SetLabel(label)
 
+    def on_comm_choice(self, event): 
+        paused = True
+        self.data_source.set_port(self.comm_choice.GetString(self.comm_choice.GetSelection()))
+
     def on_grid_visibility_control_box_toggle(self, event):
         self.draw_plot()
 
     def on_xlabels_visibility_check_box_toggle(self, event):
         self.draw_plot()
-
-    def on_plot_save(self, event):
-        file_choices = "PNG (*.png)|*.png"
-
-        dlg = wx.FileDialog(
-            self,
-            message="Save plot as...",
-            defaultDir=os.getcwd(),
-            defaultFile="plot.png",
-            wildcard=file_choices,
-            style=wx.FD_SAVE
-        )
-
-        if dlg.ShowModal() == wx.ID_OK:
-            path = dlg.GetPath()
-            self.canvas.print_figure(path, dpi=DPI)
-            self.flash_status_message("Saved to {}".format(path))
-
-    def on_plot_export(self, event):
-        file_choices = "CSV (*.csv)|*.csv"
-
-        dlg = wx.FileDialog(
-            self,
-            message="Export plot data as...",
-            defaultDir=os.getcwd(),
-            defaultFile="serial_data.csv",
-            wildcard=file_choices,
-            style=wx.FD_SAVE
-        )
-
-        if dlg.ShowModal() == wx.ID_OK:
-            path = dlg.GetPath()
-            self.export_csv_file(path)
-            self.flash_status_message("Saved to {}".format(path))
-
-    def export_csv_file(self, path):
-        csvfile = open(path, 'wb')
-        csvwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        csvwriter.writerow(["Timestamps"] + self.data.timestamps)
-        for key in self.data.data.keys():
-            csvwriter.writerow([key] + self.data.data[key])
 
     def on_plot_redraw(self, event):
         if not self.paused:
@@ -277,6 +293,9 @@ class GraphFrame(wx.Frame):
                 self.plot_data[i].set_xdata(np.arange(len(self.data.data[key])))
                 self.plot_data[i].set_ydata(np.array(self.data.data[key]))
             else:
+                label = wx.StaticText(self.panel, -1, key, style=wx.ALIGN_RIGHT)
+                label.SetForegroundColour(colors.cnames.values()[self.color_offset + i])
+                self.hbox1.Add(label, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
                 self.plot_data.append(self.plot_values_for_key(i, key))
             i += 1
 
@@ -304,8 +323,7 @@ def parse_script_args():
 
     parser.add_argument("port", help="serial port to be used")
     parser.add_argument("-b", "--baudrate", type=int, help="port baud rate")
-    parser.add_argument("-t", "--timeout", type=float,
-                        help="port timeout value")
+    parser.add_argument("-t", "--timeout", type=float, help="port timeout value")
 
     args = parser.parse_args()
 
@@ -314,7 +332,7 @@ def parse_script_args():
 
 if __name__ == "__main__":
 
-    kwargs = parse_script_args()
+    #kwargs = parse_script_args()
     data_source = SerialReader()
 
     app = wx.App()
