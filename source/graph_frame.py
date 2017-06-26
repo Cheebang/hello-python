@@ -35,7 +35,7 @@ class GraphFrame(wx.Frame):
         self.color_offset = 1
         self.line_width = 1
 
-        self.comm_ports = ['COM2', 'COM3'] 
+        self.comm_ports = ['COM2', 'COM3', 'COM4'] 
 
         self.create_menu()
         self.create_status_bar()

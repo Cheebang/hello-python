@@ -10,9 +10,9 @@ class SerialReader:
    
     def get_default_port(self, platf):
         if platf == 'Windows':
-            return "COM3"
+            return "COM4"
         else:
-            return "/dev/cu.SLAB_USBtoUART"
+            return "/dev/ttyUSB0"
     
     def set_port(self, port):
         self.port = port
