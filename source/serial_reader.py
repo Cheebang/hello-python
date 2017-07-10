@@ -1,19 +1,17 @@
 import csv
-import platform
-import serial
 import datetime
+import serial.tools.list_ports
 
 class SerialReader:
     def __init__(self):
-        self.port = self.get_default_port(str(platform.system()))
+        commports = serial.tools.list_ports.comports()
+        self.ports = []
+        for p in commports:
+            self.ports.append(p.device)
+    
+        self.port = self.ports[0]
         self.ser = serial.Serial(self.port, baudrate=9600, timeout=1)
    
-    def get_default_port(self, platf):
-        if platf == 'Windows':
-            return "COM4"
-        else:
-            return "/dev/ttyUSB0"
-    
     def set_port(self, port):
         self.port = port
         self.ser.close()

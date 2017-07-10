@@ -18,7 +18,7 @@ from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigCanvas
 import matplotlib.pyplot as plt
 
 REFRESH_INTERVAL_MS = 500
-DPI = 100
+DPI = 200
 
 class GraphFrame(wx.Frame):
     title = 'Demo: dynamic matplotlib graph'
@@ -35,15 +35,16 @@ class GraphFrame(wx.Frame):
         self.color_offset = 1
         self.line_width = 1
 
-        self.comm_ports = ['COM2', 'COM3', 'COM4'] 
+        self.comm_ports = self.data_source.ports
 
-        self.create_menu()
+#         self.create_menu()
         self.create_status_bar()
         self.create_main_panel()
 
         self.redraw_timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_plot_redraw, self.redraw_timer)
         self.redraw_timer.Start(REFRESH_INTERVAL_MS)
+        self.Maximize(True)
 
     def create_menu(self):
         self.menu_bar = wx.MenuBar()
@@ -173,11 +174,11 @@ class GraphFrame(wx.Frame):
 
     def setup_hbox2(self):
         self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
-        self.hbox2.Add(self.xmin_control_box, border=5, flag=wx.ALL)
-        self.hbox2.Add(self.xmax_control_box, border=5, flag=wx.ALL)
+#         self.hbox2.Add(self.xmin_control_box, border=5, flag=wx.ALL)
+#         self.hbox2.Add(self.xmax_control_box, border=5, flag=wx.ALL)
         self.hbox2.AddSpacer(24)
-        self.hbox2.Add(self.ymin_control_box, border=5, flag=wx.ALL)
-        self.hbox2.Add(self.ymax_control_box, border=5, flag=wx.ALL)
+#         self.hbox2.Add(self.ymin_control_box, border=5, flag=wx.ALL)
+#         self.hbox2.Add(self.ymax_control_box, border=5, flag=wx.ALL)
 
     def setup_vbox(self):
         self.vbox = wx.BoxSizer(wx.VERTICAL)
@@ -212,7 +213,7 @@ class GraphFrame(wx.Frame):
         return self.axes.plot(self.data.data[key], linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i])[0]
 
     def plot_initialize(self):
-        self.figure = Figure((3.0, 3.0), dpi=DPI)
+        self.figure = Figure((5.0, 5.0), dpi=DPI)
 
         self.axes = self.figure.add_subplot(111)
         self.axes.set_facecolor('black')
@@ -331,8 +332,6 @@ def parse_script_args():
 
 
 if __name__ == "__main__":
-
-    #kwargs = parse_script_args()
     data_source = SerialReader()
 
     app = wx.App()

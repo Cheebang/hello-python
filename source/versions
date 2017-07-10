@@ -3,3 +3,5 @@ sudo apt-get install python-dev
 sudo apt-get install gtk+2.0
 sudo apt-get install wx2.8 python-wxgtk2.8 python-wxtools wx2.8-i18n libwxgtk2.8-dev
 pip --no-cache-dir install matplotlib==2.0.2
+sudo apt-get install libglu1-mesa-dev freeglut3-dev mesa-common-dev
+sudo apt-get install install libgstreamer-plugins-base1.0-dev
