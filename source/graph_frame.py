@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib
 import matplotlib.colors as colors
 from matplotlib.figure import Figure
-from bound_control_box import BoundControlBox
 from serial_reader import SerialReader
 from serial_data_holder import SerialDataHolder
 
@@ -37,7 +36,6 @@ class GraphFrame(wx.Frame):
 
         self.comm_ports = self.data_source.ports
 
-#         self.create_menu()
         self.create_status_bar()
         self.create_main_panel()
 
@@ -70,14 +68,6 @@ class GraphFrame(wx.Frame):
             item="&Export plot\tCtrl-E", 
             helpString="Export plot data to CSV file")
         self.Bind(wx.EVT_MENU, self.on_plot_export, export_plot_entry)
-
-    def setup_export_plot(self, menu):
-        menu.AppendSeparator()
-        exit_entry = menu.Append(
-            id=-1, 
-            item="E&xit\tCtrl-X", 
-            helpString="Exit")
-        self.Bind(wx.EVT_MENU, self.on_exit, exit_entry)
 
     def on_plot_save(self, event):
         file_choices = "PNG (*.png)|*.png"
@@ -126,8 +116,8 @@ class GraphFrame(wx.Frame):
         self.plot_initialize()
         self.canvas = FigCanvas(self.panel, -1, self.figure)
 
-        self.setup_control_boxes()
         self.setup_pause_button()
+        self.setup_export_button()
 
         self.setup_grid_visibility_checkbox()
         self.setup_x_axis_visibility_checkbox()
@@ -163,7 +153,10 @@ class GraphFrame(wx.Frame):
         self.comm_choice.Bind(wx.EVT_CHOICE, self.on_comm_choice)
 
         self.hbox1.Add(self.comm_choice, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
+        self.hbox1.AddSpacer(20)
         self.hbox1.Add(self.pause_button, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
+        self.hbox1.AddSpacer(20)
+        self.hbox1.Add(self.export_button, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(20)
         self.hbox1.Add(self.grid_visibility_check_box, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(10)
@@ -191,11 +184,9 @@ class GraphFrame(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.on_pause_button_click, self.pause_button)
         self.Bind(wx.EVT_UPDATE_UI, self.on_pause_button_update, self.pause_button)
 
-    def setup_control_boxes(self):
-        self.xmin_control_box = BoundControlBox(self.panel, "X min", 0)
-        self.xmax_control_box = BoundControlBox(self.panel, "X max", 50)
-        self.ymin_control_box = BoundControlBox(self.panel, "Y min", 0)
-        self.ymax_control_box = BoundControlBox(self.panel, "Y max", 100)
+    def setup_export_button(self):
+        self.export_button = wx.Button(self.panel, -1, "Export")
+        self.Bind(wx.EVT_BUTTON, self.on_plot_export, self.export_button)
 
     def create_status_bar(self):
         self.status_bar = self.CreateStatusBar()
@@ -226,11 +217,8 @@ class GraphFrame(wx.Frame):
         self.plot_latest_values()
 
     def get_plot_xrange(self):
-        x_max = max(self.x_size, 50) if self.xmax_control_box.is_auto() \
-            else int(self.xmax_control_box.value)
-
-        x_min = x_max - 50 if self.xmin_control_box.is_auto() \
-            else int(self.xmin_control_box.value)
+        x_max = max(self.x_size, 50)
+        x_min = x_max - 50
 
         return x_min, x_max
 
@@ -242,11 +230,9 @@ class GraphFrame(wx.Frame):
             smallest.append(min(self.data.data[key]))
             biggest.append(max(self.data.data[key]))
 
-        y_min = round(min(smallest)) - 1 if self.ymin_control_box.is_auto() \
-            else int(self.ymin_control_box.value)
+        y_min = round(min(smallest)) - 1
   
-        y_max = round(max(biggest)) + 1 if self.ymax_control_box.is_auto() \
-            else int(self.ymax_control_box.value)
+        y_max = round(max(biggest)) + 1
 
         return y_min, y_max
 
