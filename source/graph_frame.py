@@ -19,8 +19,10 @@ import matplotlib.pyplot as plt
 REFRESH_INTERVAL_MS = 500
 DPI = 200
 
+COLORS = ['gold', 'red', 'blue', 'lime', 'orange', 'purple', 'magenta', 'cyan', 'brown']
+
 class GraphFrame(wx.Frame):
-    title = 'Demo: dynamic matplotlib graph'
+    title = 'Furmtech'
 
     def __init__(self, data_source):
         wx.Frame.__init__(self, None, -1, self.title)
@@ -31,7 +33,7 @@ class GraphFrame(wx.Frame):
         self.x_size = 0
 
         self.plot_data = []
-        self.color_offset = 1
+        self.color_offset = 0
         self.line_width = 1
 
         self.comm_ports = self.data_source.ports
@@ -75,7 +77,7 @@ class GraphFrame(wx.Frame):
         dlg = wx.FileDialog(
             self,
             message="Save plot as...",
-            defaultDir=os.getcwd(),
+            defaultDir=os.path.expanduser('~'),
             defaultFile="plot.png",
             wildcard=file_choices,
             style=wx.FD_SAVE
@@ -106,9 +108,10 @@ class GraphFrame(wx.Frame):
     def export_csv_file(self, path):
         csvfile = open(path, 'wb')
         csvwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        csvwriter.writerow(["Timestamps"] + self.data.timestamps)
-        for key in self.data.data.keys():
-            csvwriter.writerow([key] + self.data.data[key])
+        csvwriter.writerow(["Timestamps"] + self.data.data.keys())
+        #for each timestamp, write out a new line with that timestamp and all data logs at that time
+        for i in range(0, len(self.data.timestamps)):
+            csvwriter.writerow([self.data.timestamps[i]] + [self.data.data[key][i] for key in self.data.data.keys()])
 
     def create_main_panel(self):
         self.panel = wx.Panel(self)
@@ -201,7 +204,7 @@ class GraphFrame(wx.Frame):
             i += 1
 
     def plot_values_for_key(self, i, key):
-        return self.axes.plot(self.data.data[key], linewidth=self.line_width, color=colors.cnames.values()[self.color_offset + i])[0]
+        return self.axes.plot(self.data.data[key], linewidth=self.line_width, color=colors.cnames[COLORS[self.color_offset + i]])[0]
 
     def plot_initialize(self):
         self.figure = Figure((5.0, 5.0), dpi=DPI)
