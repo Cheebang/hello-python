@@ -1,25 +1,19 @@
-import argparse
 import os
 import wx
 import csv
-import numpy as np
 import matplotlib
-import matplotlib.colors as colors
-from matplotlib.figure import Figure
-from serial_reader import SerialReader
-from serial_data_holder import SerialDataHolder
 
-# The recommended way to use wx with mpl is with the WXAgg backend.
+from serial_data_holder import SerialDataHolder
+from plot import Plot
+
 matplotlib.use('WXAgg')
 
 # Those import have to be after setting matplotlib backend.
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigCanvas
-import matplotlib.pyplot as plt
 
 REFRESH_INTERVAL_MS = 500
 DPI = 200
-
-COLORS = ['gold', 'red', 'blue', 'lime', 'orange', 'purple', 'magenta', 'cyan', 'brown']
+COLORS = ['red', 'blue', 'lime', 'orange', 'purple', 'magenta', 'cyan', 'brown']
 
 class GraphFrame(wx.Frame):
     title = 'Furmtech'
@@ -28,13 +22,15 @@ class GraphFrame(wx.Frame):
         wx.Frame.__init__(self, None, -1, self.title)
 
         self.data_source = data_source
-        self.data = SerialDataHolder()
+        self.serial_data = SerialDataHolder()
         self.paused = True
         self.x_size = 0
 
         self.plot_data = []
         self.color_offset = 0
         self.line_width = 1
+        
+        self.plot = Plot()
 
         self.comm_ports = self.data_source.ports
 
@@ -111,13 +107,13 @@ class GraphFrame(wx.Frame):
         csvwriter.writerow(["Timestamps"] + self.data.data.keys())
         #for each timestamp, write out a new line with that timestamp and all data logs at that time
         for i in range(0, len(self.data.timestamps)):
-            csvwriter.writerow([self.data.timestamps[i]] + [self.data.data[key][i] for key in self.data.data.keys()])
+            csvwriter.writerow([self.data.timestamps[i]] + [self.serial_data.data[key][i] for key in self.serial_data.data.keys()])
 
     def create_main_panel(self):
         self.panel = wx.Panel(self)
 
-        self.plot_initialize()
-        self.canvas = FigCanvas(self.panel, -1, self.figure)
+        self.plot.plot_initialize(self.serial_data.data)
+        self.canvas = FigCanvas(self.panel, -1, self.plot.figure)
 
         self.setup_pause_button()
         self.setup_export_button()
@@ -165,16 +161,10 @@ class GraphFrame(wx.Frame):
         self.hbox1.AddSpacer(10)
         self.hbox1.Add(self.xlabels_visibility_check_box, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(10)
-        self.legend_label = wx.StaticText(self.panel, -1, "Legend: ", style=wx.ALIGN_RIGHT)
-        self.hbox1.Add(self.legend_label, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
 
     def setup_hbox2(self):
         self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
-#         self.hbox2.Add(self.xmin_control_box, border=5, flag=wx.ALL)
-#         self.hbox2.Add(self.xmax_control_box, border=5, flag=wx.ALL)
         self.hbox2.AddSpacer(24)
-#         self.hbox2.Add(self.ymin_control_box, border=5, flag=wx.ALL)
-#         self.hbox2.Add(self.ymax_control_box, border=5, flag=wx.ALL)
 
     def setup_vbox(self):
         self.vbox = wx.BoxSizer(wx.VERTICAL)
@@ -194,60 +184,14 @@ class GraphFrame(wx.Frame):
     def create_status_bar(self):
         self.status_bar = self.CreateStatusBar()
 
-    def plot_latest_values(self):
-        i = 0
-        for key in self.data.data.keys():
-            if len(self.plot_data) > i:
-                self.plot_data[i] = self.plot_values_for_key(i, key)
-            else:
-                self.plot_data.append(self.plot_values_for_key(i, key))
-            i += 1
-
-    def plot_values_for_key(self, i, key):
-        return self.axes.plot(self.data.data[key], linewidth=self.line_width, color=colors.cnames[COLORS[self.color_offset + i]])[0]
-
-    def plot_initialize(self):
-        self.figure = Figure((5.0, 5.0), dpi=DPI)
-
-        self.axes = self.figure.add_subplot(111)
-        self.axes.set_facecolor('black')
-        self.axes.set_title('Arduino Serial Data', size=12)
-        self.axes.grid(color='grey')
-
-        plt.setp(self.axes.get_xticklabels(), fontsize=8)
-        plt.setp(self.axes.get_yticklabels(), fontsize=8)
-
-        self.plot_latest_values()
-
-    def get_plot_xrange(self):
-        x_max = max(self.x_size, 50)
-        x_min = x_max - 50
-
-        return x_min, x_max
-
-    def get_plot_yrange(self):       
-        smallest = [0]
-        biggest = [20]
-        
-        for key in self.data.data.keys():
-            smallest.append(min(self.data.data[key]))
-            biggest.append(max(self.data.data[key]))
-
-        y_min = round(min(smallest)) - 1
-  
-        y_max = round(max(biggest)) + 1
-
-        return y_min, y_max
-
     def on_pause_button_click(self, event):
         self.paused = not self.paused
 
     def on_pause_button_update(self, event):
-        label = "Resume" if self.paused else "Pause"
+        label = "Start" if self.paused else "Stop"
         self.pause_button.SetLabel(label)
 
     def on_comm_choice(self, event): 
-        paused = True
         self.data_source.set_port(self.comm_choice.GetString(self.comm_choice.GetSelection()))
 
     def on_grid_visibility_control_box_toggle(self, event):
@@ -255,41 +199,6 @@ class GraphFrame(wx.Frame):
 
     def on_xlabels_visibility_check_box_toggle(self, event):
         self.draw_plot()
-
-    def on_plot_redraw(self, event):
-        if not self.paused:
-            self.data.add(self.data_source.next())
-            self.x_size += 1
-
-        self.draw_plot()
-
-    def draw_plot(self):
-        x_min, x_max = self.get_plot_xrange()
-        y_min, y_max = self.get_plot_yrange()
-
-        self.axes.set_xbound(lower=x_min, upper=x_max)
-        self.axes.set_ybound(lower=y_min, upper=y_max)
-
-        self.axes.grid(self.grid_visibility_check_box.IsChecked())
-
-        plt.setp(
-            self.axes.get_xticklabels(),
-            visible=self.xlabels_visibility_check_box.IsChecked()
-        )
-
-        i = 0
-        for key in self.data.data.keys():
-            if len(self.plot_data) > i:
-                self.plot_data[i].set_xdata(np.arange(len(self.data.data[key])))
-                self.plot_data[i].set_ydata(np.array(self.data.data[key]))
-            else:
-                label = wx.StaticText(self.panel, -1, key, style=wx.ALIGN_RIGHT)
-                label.SetForegroundColour(colors.cnames.values()[self.color_offset + i])
-                self.hbox1.Add(label, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
-                self.plot_data.append(self.plot_values_for_key(i, key))
-            i += 1
-
-        self.canvas.draw()
 
     def on_exit(self, event):
         self.Destroy()
@@ -307,23 +216,13 @@ class GraphFrame(wx.Frame):
     def on_flash_status_off(self, event):
         self.status_bar.SetStatusText('')
 
+    def on_plot_redraw(self, data):
+        if not self.paused:
+            self.serial_data.add(self.data_source.next())
+            self.draw_plot()
+    
+    def draw_plot(self):
+        if not self.paused:
+            self.plot.draw_plot(self.serial_data.data)
 
-def parse_script_args():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("port", help="serial port to be used")
-    parser.add_argument("-b", "--baudrate", type=int, help="port baud rate")
-    parser.add_argument("-t", "--timeout", type=float, help="port timeout value")
-
-    args = parser.parse_args()
-
-    return {key: val for key, val in vars(args).iteritems() if val is not None}
-
-
-if __name__ == "__main__":
-    data_source = SerialReader()
-
-    app = wx.App()
-    app.frame = GraphFrame(data_source)
-    app.frame.Show()
-    app.MainLoop()
+        self.canvas.draw()
