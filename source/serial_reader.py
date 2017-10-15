@@ -10,7 +10,12 @@ class SerialReader:
             self.ports.append(p.device)
     
         self.port = self.ports[0]
+
+    def start(self):
         self.ser = serial.Serial(self.port, baudrate=9600, timeout=1)
+    
+    def stop(self):
+        self.ser.close()
    
     def set_port(self, port):
         self.port = port

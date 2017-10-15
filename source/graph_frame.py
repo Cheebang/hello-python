@@ -67,23 +67,6 @@ class GraphFrame(wx.Frame):
             helpString="Export plot data to CSV file")
         self.Bind(wx.EVT_MENU, self.on_plot_export, export_plot_entry)
 
-    def on_plot_save(self, event):
-        file_choices = "PNG (*.png)|*.png"
-
-        dlg = wx.FileDialog(
-            self,
-            message="Save plot as...",
-            defaultDir=os.path.expanduser('~'),
-            defaultFile="plot.png",
-            wildcard=file_choices,
-            style=wx.FD_SAVE
-        )
-
-        if dlg.ShowModal() == wx.ID_OK:
-            path = dlg.GetPath()
-            self.canvas.print_figure(path, dpi=DPI)
-            self.flash_status_message("Saved to {}".format(path))
-
     def on_plot_export(self, event):
         file_choices = "CSV (*.csv)|*.csv"
 
@@ -104,10 +87,10 @@ class GraphFrame(wx.Frame):
     def export_csv_file(self, path):
         csvfile = open(path, 'wb')
         csvwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        csvwriter.writerow(["Timestamps"] + self.data.data.keys())
+        csvwriter.writerow(["Timestamps"] + self.serial_data.data.keys())
         #for each timestamp, write out a new line with that timestamp and all data logs at that time
-        for i in range(0, len(self.data.timestamps)):
-            csvwriter.writerow([self.data.timestamps[i]] + [self.serial_data.data[key][i] for key in self.serial_data.data.keys()])
+        for i in range(0, len(self.serial_data.timestamps)):
+            csvwriter.writerow([self.serial_data.timestamps[i]] + [self.serial_data.data[key][i] for key in self.serial_data.data.keys()])
 
     def create_main_panel(self):
         self.panel = wx.Panel(self)
@@ -186,6 +169,10 @@ class GraphFrame(wx.Frame):
 
     def on_pause_button_click(self, event):
         self.paused = not self.paused
+        if not self.paused:
+            self.data_source.start()
+        else:
+            self.data_source.stop()
 
     def on_pause_button_update(self, event):
         label = "Start" if self.paused else "Stop"
