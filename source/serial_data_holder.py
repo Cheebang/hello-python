@@ -4,9 +4,10 @@ class SerialDataHolder:
         self.timestamps = []
 
     def add(self, (timestamp, values)):
-        self.timestamps.append(timestamp)
-        for key in values.keys():
-            if (self.data.has_key(key)):
-                self.data[key].append(values[key])
-            else:
-                self.data[key] = [values[key]]
+        if len(values) > 0:
+            self.timestamps.append(timestamp)
+            for key in values.keys():
+                if (self.data.has_key(key)):
+                    self.data[key].append(values[key])
+                else:
+                    self.data[key] = [values[key]]
