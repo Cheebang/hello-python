@@ -101,9 +101,6 @@ class GraphFrame(wx.Frame):
         self.setup_pause_button()
         self.setup_export_button()
 
-        self.setup_grid_visibility_checkbox()
-        self.setup_x_axis_visibility_checkbox()
-
         self.setup_hbox1()
         self.setup_hbox2()
         self.setup_vbox()
@@ -140,10 +137,6 @@ class GraphFrame(wx.Frame):
         self.hbox1.AddSpacer(20)
         self.hbox1.Add(self.export_button, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(20)
-        self.hbox1.Add(self.grid_visibility_check_box, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
-        self.hbox1.AddSpacer(10)
-        self.hbox1.Add(self.xlabels_visibility_check_box, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
-        self.hbox1.AddSpacer(10)
 
     def setup_hbox2(self):
         self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
