@@ -11,7 +11,7 @@ matplotlib.use('WXAgg')
 # Those import have to be after setting matplotlib backend.
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigCanvas
 
-REFRESH_INTERVAL_MS = 500
+REFRESH_INTERVAL_MS = 100
 DPI = 200
 COLORS = ['red', 'blue', 'lime', 'orange', 'purple', 'magenta', 'cyan', 'brown']
 
@@ -24,9 +24,7 @@ class GraphFrame(wx.Frame):
         self.data_source = data_source
         self.serial_data = SerialDataHolder()
         self.paused = True
-        self.x_size = 0
 
-        self.plot_data = []
         self.color_offset = 0
         self.line_width = 1
         
@@ -92,6 +90,11 @@ class GraphFrame(wx.Frame):
         for i in range(0, len(self.serial_data.timestamps)):
             csvwriter.writerow([self.serial_data.timestamps[i]] + [self.serial_data.data[key][i] for key in self.serial_data.data.keys()])
 
+    def on_plot_clear(self, event):
+        self.serial_data = SerialDataHolder()
+        #self.plot.plot_initialize(self.serial_data.data)
+        self.canvas.draw()
+
     def create_main_panel(self):
         self.panel = wx.Panel(self)
 
@@ -100,6 +103,7 @@ class GraphFrame(wx.Frame):
 
         self.setup_pause_button()
         self.setup_export_button()
+        self.setup_clear_button()
 
         self.setup_hbox1()
         self.setup_hbox2()
@@ -137,6 +141,8 @@ class GraphFrame(wx.Frame):
         self.hbox1.AddSpacer(20)
         self.hbox1.Add(self.export_button, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(20)
+        self.hbox1.Add(self.clear_button, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
+        self.hbox1.AddSpacer(20)
 
     def setup_hbox2(self):
         self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
@@ -156,6 +162,10 @@ class GraphFrame(wx.Frame):
     def setup_export_button(self):
         self.export_button = wx.Button(self.panel, -1, "Export")
         self.Bind(wx.EVT_BUTTON, self.on_plot_export, self.export_button)
+
+    def setup_clear_button(self):
+        self.clear_button = wx.Button(self.panel, -1, "Clear")
+        self.Bind(wx.EVT_BUTTON, self.on_plot_clear, self.clear_button)
 
     def create_status_bar(self):
         self.status_bar = self.CreateStatusBar()

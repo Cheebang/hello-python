@@ -1,23 +1,25 @@
+import wx
+import os
+import sys
+import wx.lib.agw.advancedsplash as AS
+
 from graph_frame import GraphFrame
 from serial_reader import SerialReader
-import argparse
-import wx
 
-def parse_script_args():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("port", help="serial port to be used")
-    parser.add_argument("-b", "--baudrate", type=int, help="port baud rate")
-    parser.add_argument("-t", "--timeout", type=float, help="port timeout value")
-
-    args = parser.parse_args()
-
-    return {key: val for key, val in vars(args).iteritems() if val is not None}
+SPLASH_FN = "splashscreen.png"
+SPLASH_TIME = 3000
 
 if __name__ == "__main__":
-    data_source = SerialReader()
-
-    app = wx.App()
+    app = wx.App(0)
+    bitmap = wx.Bitmap(SPLASH_FN, wx.BITMAP_TYPE_PNG)
+    shadow = wx.WHITE
+    splash = AS.AdvancedSplash(None, bitmap=bitmap, timeout=SPLASH_TIME,
+                               agwStyle=AS.AS_TIMEOUT |
+                               AS.AS_CENTER_ON_PARENT |
+                               AS.AS_SHADOW_BITMAP,
+                               shadowcolour=shadow)
+    
+    data_source = SerialReader()  
     app.frame = GraphFrame(data_source)
     app.frame.Show()
     app.MainLoop()

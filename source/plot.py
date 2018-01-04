@@ -15,13 +15,11 @@ COLORS = ['red', 'blue', 'lime', 'orange', 'purple', 'magenta', 'cyan', 'brown']
 
 class Plot():
     
-    def __init__(self):
-        self.x_size = 0
+    def plot_initialize(self, data):
         self.plot_data = []
         self.color_offset = 0
         self.line_width = 1
-
-    def plot_initialize(self, data):
+        self.x_size = 0
         self.figure = Figure((5.0, 5.0), dpi=DPI)
 
         self.axes = self.figure.add_subplot(111)
