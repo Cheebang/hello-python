@@ -12,17 +12,15 @@ class SerialReader:
             self.ports.append(p.device)
     
         self.port = self.ports[0]
-        self.sers = []
+        self.sers = map(lambda p: serial.Serial(p, baudrate=9600, timeout=1), self.ports)
 
     def start(self):
-        for p in self.ports:
-            self.sers.append(serial.Serial(p, baudrate=9600, timeout=1))
+        return
     
     def stop(self):
         for s in self.sers:
-            s.close()
-            
-        self.sers = []
+            s.close()     
+        self.sers = self.sers = map(lambda p: serial.Serial(p, baudrate=9600, timeout=1), self.ports)
    
     def set_port(self, port):
         self.port = port
@@ -44,7 +42,10 @@ class SerialReader:
                 values = reader.next()
                 
                 if (len(values) >= 5):
-                    result['con'+str(i)] = float(values[5])
+                    val = float(values[5])
+                    if (len(values) >= 6 and values[6] == 'uS/cm'):
+                        val = val/1000
+                    result['con'+str(i)] = float(val)
             return datetime.datetime.now(), result
         else:
             reader = csv.reader([self.ser.readline()])

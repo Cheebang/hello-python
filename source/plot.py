@@ -26,11 +26,16 @@ class Plot():
         self.axes.set_facecolor('white')
         self.axes.set_title('Serial Data', size=12)
         self.axes.yaxis.grid(True)
+        self.axes.set_xlabel('Readings')
+        self.axes.set_ylabel('mS/cm')
 
         plt.setp(self.axes.get_xticklabels(), fontsize=8)
         plt.setp(self.axes.get_yticklabels(), fontsize=8)
 
         self.plot_latest_values(data)
+   
+    def reset(self):
+        plt.clf()
    
     def plot_latest_values(self, data):
         i = 0
@@ -68,7 +73,6 @@ class Plot():
 
     def get_plot_xrange(self):
         x_max = max(self.x_size, 10)
-        #x_min = x_max - 50
         x_min = 0
 
         return x_min, x_max

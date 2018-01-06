@@ -71,7 +71,7 @@ class GraphFrame(wx.Frame):
         dlg = wx.FileDialog(
             self,
             message="Export plot data as...",
-            defaultDir=os.getcwd(),
+            defaultDir=os.path.expanduser('~'),
             defaultFile="serial_data.csv",
             wildcard=file_choices,
             style=wx.FD_SAVE
@@ -86,13 +86,14 @@ class GraphFrame(wx.Frame):
         csvfile = open(path, 'wb')
         csvwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
         csvwriter.writerow(["Timestamps"] + self.serial_data.data.keys())
+
         #for each timestamp, write out a new line with that timestamp and all data logs at that time
         for i in range(0, len(self.serial_data.timestamps)):
             csvwriter.writerow([self.serial_data.timestamps[i]] + [self.serial_data.data[key][i] for key in self.serial_data.data.keys()])
 
     def on_plot_clear(self, event):
         self.serial_data = SerialDataHolder()
-        #self.plot.plot_initialize(self.serial_data.data)
+        self.plot.reset()
         self.canvas.draw()
 
     def create_main_panel(self):
@@ -131,11 +132,11 @@ class GraphFrame(wx.Frame):
     def setup_hbox1(self):
         self.hbox1 = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.comm_choice = wx.Choice(self.panel, choices = self.comm_ports)
-        self.comm_choice.SetStringSelection(self.data_source.port)
-        self.comm_choice.Bind(wx.EVT_CHOICE, self.on_comm_choice)
+#         self.comm_choice = wx.Choice(self.panel, choices = self.comm_ports)
+#         self.comm_choice.SetStringSelection(self.data_source.port)
+#         self.comm_choice.Bind(wx.EVT_CHOICE, self.on_comm_choice)
 
-        self.hbox1.Add(self.comm_choice, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
+#         self.hbox1.Add(self.comm_choice, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(20)
         self.hbox1.Add(self.pause_button, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(20)
